@@ -40,20 +40,21 @@ def debug():
 def movieglu_headers():
     current_device_time = datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="milliseconds")
     return {
-        "x-api-key": os.getenv("MOVIEGLU_API_KEY"),
-        "client": os.getenv("MOVIEGLU_CLIENT"),
-        "authorization": os.getenv("MOVIEGLU_AUTH"),
-        "territory": os.getenv("MOVIEGLU_TERRITORY"),
-        "api-version": os.getenv("MOVIEGLU_API_VERSION"),
+        "x-api-key": os.getenv("MOVIEGLU_API_KEY","").strip(),
+        "client": os.getenv("MOVIEGLU_CLIENT", "").strip(),
+        "Authorization": os.getenv("MOVIEGLU_AUTH","").strip(),
+        "territory": os.getenv("MOVIEGLU_TERRITORY", "").strip(),
+        "api-version": os.getenv("MOVIEGLU_API_VERSION", "").strip(),
         "device-datetime": current_device_time
     }
 
-# retrieving film detail's information
+# temp function -- retrieving film detail's information
 @app.route('/filmDetails', methods = ["GET"])
 def film_details():
     header_list = list(movieglu_headers().keys())
     return jsonify(header_list), 200 
 
+# allows you to look up a film's entire info
 @app.route('/filmLiveSearch/', methods =["GET"])  # type: ignore
 def film_live_search():
     query = request.args.get("query", "")
@@ -82,6 +83,8 @@ def film_live_search():
         }
     if response.status_code == 200:
         return response.json(), 200
+    
 
+    
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
