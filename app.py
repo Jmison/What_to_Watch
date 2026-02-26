@@ -36,7 +36,7 @@ def debug():
     }
     return jsonify(list_of_req), 200
 
-# headers information
+# ℹ️ headers information 
 def movieglu_headers():
     current_device_time = datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="milliseconds")
     return {
@@ -54,7 +54,7 @@ def film_details():
     header_list = list(movieglu_headers().keys())
     return jsonify(header_list), 200 
 
-# allows you to look up a film's entire info
+#  ℹ️ allows you to look up a film's entire info
 @app.route('/filmLiveSearch/', methods =["GET"])  # type: ignore
 def film_live_search():
     query = request.args.get("query", "")
@@ -69,10 +69,10 @@ def film_live_search():
     headers = movieglu_headers()
     response = requests.get(build_url, headers = headers, params=params)
 
+    # ❌ when unsuccesful output 
     if response.status_code != 200:
         return {
             "response" :response.status_code, 
-            # "body": response.json(),
             "content type": response.headers.get("Content-Type"),
             "text preview": response.text[:200],
             "url": response.url,
@@ -81,10 +81,16 @@ def film_live_search():
             "MG-error": response.headers.get("MG-error"),
             "has auth": bool(headers.get("Authorization"))
         }
-    if response.status_code == 200:
-        return response.json(), 200
     
-
+    # ✅ when succesful output 
+    if response.status_code == 200:
+        film_data = response.json()
+        films = film_data["films"]
+        first_film = films[0] if films else{}
+        return jsonify(
+            film_id = first_film.get("film_id"),
+            film_name = first_film.get("film_name")
+        ), 200    
     
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
