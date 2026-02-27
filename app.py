@@ -47,11 +47,14 @@ def movieglu_headers():
         "device-datetime": current_device_time
     }
 
-#   temp function -- retrieving film detail's information
+#   ℹ️ route where user will be able to query film_id, and output individual film's name and stats
 @app.route('/filmDetails', methods = ["GET"])
 def film_details():
-    header_list = list(movieglu_headers().keys())
-    return jsonify(header_list), 200 
+    # header_list = list(movieglu_headers().keys())     -- literally just a list of headers
+    temp_message = {
+        "message": "This is where we'll see an individual film's stats via. their film_id in query!"
+    }
+    return jsonify(temp_message), 200 
 
 #   ℹ️ allows you to look up a film's entire info
 @app.route('/filmLiveSearch/', methods =["GET"])  # type: ignore
@@ -96,15 +99,17 @@ def film_live_search():
         #   5️⃣-ℹ️ variales and jsonify that returns the first-five films
         first_five_films = []   # empty list of the first five films
         for film in films[:5]:
-
             film_id = film.get("film_id")
             film_name = film.get("film_name")
+
+            if (film_name is None) or (film_id is None):
+                continue
 
             first_five_films.append({
                 "film_id": film_id,
                 "film_name": film_name
             })
-        return jsonify(first_five_films)
+        return jsonify(first_five_films),200
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
