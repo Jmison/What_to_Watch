@@ -2,7 +2,6 @@ from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timezone
-
 import requests
 load_dotenv()
 
@@ -21,7 +20,7 @@ def echo():
     q = request.args.get("q", "")
     return jsonify(q = q), 200
 
-# checks and sees if the API information is present, returns false if not.
+#   checks and sees if the API information is present, returns false if not.
 @app.route('/debug/env')
 def debug():
     current_device_time = datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="milliseconds")
@@ -36,7 +35,7 @@ def debug():
     }
     return jsonify(list_of_req), 200
 
-# ℹ️ headers information 
+#   ℹ️ headers information retreived from the .env document
 def movieglu_headers():
     current_device_time = datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="milliseconds")
     return {
@@ -48,13 +47,13 @@ def movieglu_headers():
         "device-datetime": current_device_time
     }
 
-# temp function -- retrieving film detail's information
+#   temp function -- retrieving film detail's information
 @app.route('/filmDetails', methods = ["GET"])
 def film_details():
     header_list = list(movieglu_headers().keys())
     return jsonify(header_list), 200 
 
-#  ℹ️ allows you to look up a film's entire info
+#   ℹ️ allows you to look up a film's entire info
 @app.route('/filmLiveSearch/', methods =["GET"])  # type: ignore
 def film_live_search():
     query = request.args.get("query", "")
@@ -69,7 +68,7 @@ def film_live_search():
     headers = movieglu_headers()
     response = requests.get(build_url, headers = headers, params=params)
 
-    # ❌ when unsuccesful output 
+    #   ❌ when unsuccesful output 
     if response.status_code != 200:
         return {
             "response" :response.status_code, 
@@ -82,15 +81,30 @@ def film_live_search():
             "has auth": bool(headers.get("Authorization"))
         }
     
-    # ✅ when succesful output 
+    #   ✅ when succesful output 
     if response.status_code == 200:
         film_data = response.json()
         films = film_data["films"]
         first_film = films[0] if films else{}
-        return jsonify(
+
+        #   variable that jsonify's and returns the first film only
+        first_film_output =  jsonify(
             film_id = first_film.get("film_id"),
             film_name = first_film.get("film_name")
         ), 200    
-    
+
+        #   5️⃣-ℹ️ variales and jsonify that returns the first-five films
+        first_five_films = []   # empty list of the first five films
+        for film in films[:5]:
+
+            film_id = film.get("film_id")
+            film_name = film.get("film_name")
+
+            first_five_films.append({
+                "film_id": film_id,
+                "film_name": film_name
+            })
+        return jsonify(first_five_films)
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
