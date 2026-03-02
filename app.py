@@ -62,14 +62,37 @@ def film_details():
     params = {"film_id": film_id}
     response = requests.get(build_url, headers=headers, params=params)
 
+    # film's information -- IMBD style
+    data = response.json()
+    film_title = data.get("film_name")
+
+    film_release_dates = data.get("release_dates", [])
+    film_release_date = film_release_dates[0].get("release_date") if film_release_dates else None
+    film_genres = data.get("genres", [])
+    film_genre_names = [gen.get("genre_name") for gen in film_genres]
+    film_duration = data.get("duration_mins")
+    # film_director = data.get("director_name", [])
+    # film_director_names = film_director[1].get("director_name")
+
+    film_info = {
+        "Title": film_title,
+        "Release Date": film_release_date,
+        "Genre": film_genre_names,
+        "Duration": film_duration,
+        # "Director(s)": film_director
+    }  
+
     if response.status_code != 200:
+        retry_after = response.headers.get("Retry After")
         return {
             "response" :response.status_code,
             "MG Message": response.headers.get("MG-message"),
-            "text preview": response.text[:200]
+            "text preview": response.text[:200],
+            "Retry After": retry_after
         }, 400
     else:
-        return response.json(), 200
+        # return jsonify(response.json()), 200
+        return jsonify(film_info), 200
 
 #   ℹ️ allows you to to see the first five films that match the query ID typed in route. film_id + film_name
 @app.route('/filmLiveSearch/', methods =["GET"])  # type: ignore
