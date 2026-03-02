@@ -48,15 +48,30 @@ def movieglu_headers():
     }
 
 #   ℹ️ route where user will be able to query film_id, and output individual film's name and stats
-@app.route('/filmDetails', methods = ["GET"])
-def film_details():
-    # header_list = list(movieglu_headers().keys())     -- literally just a list of headers
-    temp_message = {
-        "message": "This is where we'll see an individual film's stats via. their film_id in query!"
-    }
-    return jsonify(temp_message), 200 
+@app.route('/filmDetails', methods = ["GET"]) #type: ignore
+def film_details(): 
+    film_id = request.args.get("film_id")
+    if film_id == None:
+        return {
+            "error": "film_id is required"
+        }, 400  
+    
+    get_base = os.getenv("MOVIEGLU_API_BASE")
+    build_url = str(get_base) + "/filmDetails"
+    headers = movieglu_headers()
+    params = {"film_id": film_id}
+    response = requests.get(build_url, headers=headers, params=params)
 
-#   ℹ️ allows you to look up a film's entire info
+    if response.status_code != 200:
+        return {
+            "response" :response.status_code,
+            "MG Message": response.headers.get("MG-message"),
+            "text preview": response.text[:200]
+        }, 400
+    else:
+        return response.json(), 200
+
+#   ℹ️ allows you to to see the first five films that match the query ID typed in route. film_id + film_name
 @app.route('/filmLiveSearch/', methods =["GET"])  # type: ignore
 def film_live_search():
     query = request.args.get("query", "")
