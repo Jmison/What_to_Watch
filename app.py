@@ -7,6 +7,7 @@ import time
 load_dotenv()
 
 app = Flask(__name__)
+
  #   cache block, caps to make it a constant
 GLOBAL_CACHE = {}
 CACHE_TTL_SECONDS = 300 #   5mins
@@ -66,7 +67,7 @@ def film_details():
     time_now = time.time()
     cached = GLOBAL_CACHE.get(film_id)
     if cached and cached.get("expires_at", 0) > time_now:
-        return {**cached["data"], "cached": True}, 200
+        return jsonify({**cached["data"], "cached": True}), 200
 
     get_base = os.getenv("MOVIEGLU_API_BASE")
     build_url = str(get_base) + "/filmDetails"
@@ -74,7 +75,7 @@ def film_details():
     params = {"film_id": film_id}
     response = requests.get(build_url, headers=headers, params=params)
 
-    #   ❌ No content found
+    #   ❌ no content found
     if response.status_code == 204:
         return {
             "error": "no results",
@@ -89,9 +90,9 @@ def film_details():
             "MG Message": response.headers.get("MG-message"),
             "text preview": response.text[:200],
             "Retry After": retry_after
-        }, 400
+        }, response.status_code
     
-    #   ✅ when succesful output 
+    #   ✅ succesful output 
     if response.status_code == 200:
         # film's information -- IMBD style
         data = response.json()
@@ -114,8 +115,12 @@ def film_details():
         }  
 
         #   cache store goes here ⬇️
-    
-    return jsonify(film_info), 200
+        GLOBAL_CACHE[film_id] = {
+            "expires_at": time_now + CACHE_TTL_SECONDS,
+            "data": film_info
+        }
+    # return jsonify(film_info), 200    --- former return result before flag below
+        return {**film_info, "cached":False}
 
 #   ℹ️ allows you to to see the first five films that match the query ID typed in route. film_id + film_name
 @app.route('/filmLiveSearch/', methods =["GET"])  # type: ignore
@@ -132,7 +137,7 @@ def film_live_search():
     headers = movieglu_headers()
     response = requests.get(build_url, headers = headers, params=params)
 
-    #   ❌ when unsuccesful output 
+    #   ❌ unsuccesful output 
     if response.status_code != 200:
         return {
             "response" :response.status_code, 
@@ -145,7 +150,7 @@ def film_live_search():
             "has auth": bool(headers.get("Authorization"))
         }
     
-    #   ✅ when succesful output 
+    #   ✅ succesful output 
     if response.status_code == 200:
         film_data = response.json()
         films = film_data["films"]
