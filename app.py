@@ -3,9 +3,13 @@ from dotenv import load_dotenv
 import os
 from datetime import datetime, timezone
 import requests
+import time
 load_dotenv()
 
 app = Flask(__name__)
+ #   cache block, caps to make it a constant
+GLOBAL_CACHE = {}
+CACHE_TTL_SECONDS = 300 #   5mins
 
 @app.route('/')
 def home():
@@ -51,48 +55,67 @@ def movieglu_headers():
 @app.route('/filmDetails', methods = ["GET"]) #type: ignore
 def film_details(): 
     film_id = request.args.get("film_id")
+    
+     #   ❌ when film_id not given 
     if film_id == None:
         return {
             "error": "film_id is required"
         }, 400  
     
+    #   cache block lookup
+    time_now = time.time()
+    cached = GLOBAL_CACHE.get(film_id)
+    if cached and cached.get("expires_at", 0) > time_now:
+        return {**cached["data"], "cached": True}, 200
+
     get_base = os.getenv("MOVIEGLU_API_BASE")
     build_url = str(get_base) + "/filmDetails"
     headers = movieglu_headers()
     params = {"film_id": film_id}
     response = requests.get(build_url, headers=headers, params=params)
 
-    # film's information -- IMBD style
-    data = response.json()
-    film_title = data.get("film_name")
+    #   ❌ No content found
+    if response.status_code == 204:
+        return {
+            "error": "no results",
+            "film id": film_id
+        }, response.status_code
 
-    film_release_dates = data.get("release_dates", [])
-    film_release_date = film_release_dates[0].get("release_date") if film_release_dates else None
-    film_genres = data.get("genres", [])
-    film_genre_names = [gen.get("genre_name") for gen in film_genres]
-    film_duration = data.get("duration_mins")
-    # film_director = data.get("director_name", [])
-    # film_director_names = film_director[1].get("director_name")
-
-    film_info = {
-        "Title": film_title,
-        "Release Date": film_release_date,
-        "Genre": film_genre_names,
-        "Duration": film_duration,
-        # "Director(s)": film_director
-    }  
-
+    #   ❌ unsuccesful output  
     if response.status_code != 200:
-        retry_after = response.headers.get("Retry After")
+        retry_after = response.headers.get("Retry-After")
         return {
             "response" :response.status_code,
             "MG Message": response.headers.get("MG-message"),
             "text preview": response.text[:200],
             "Retry After": retry_after
         }, 400
-    else:
-        # return jsonify(response.json()), 200
-        return jsonify(film_info), 200
+    
+    #   ✅ when succesful output 
+    if response.status_code == 200:
+        # film's information -- IMBD style
+        data = response.json()
+        film_title = data.get("film_name")
+        film_release_dates = data.get("release_dates", [])
+        film_release_date = film_release_dates[0].get("release_date") if film_release_dates else None
+        film_genres = data.get("genres", [])
+        film_genre_names = [gen.get("genre_name") for gen in film_genres]
+        film_duration = data.get("duration_mins")
+        #   film_director = data.get("director_name", [])
+        #   film_director_names = film_director[1].get("director_name")
+
+
+        film_info = {
+            "Title": film_title,
+            "Release Date": film_release_date,
+            "Genre": film_genre_names,
+            "Duration": film_duration,
+            #   "Director(s)": film_director
+        }  
+
+        #   cache store goes here ⬇️
+    
+    return jsonify(film_info), 200
 
 #   ℹ️ allows you to to see the first five films that match the query ID typed in route. film_id + film_name
 @app.route('/filmLiveSearch/', methods =["GET"])  # type: ignore
