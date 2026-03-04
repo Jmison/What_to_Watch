@@ -8,9 +8,13 @@ load_dotenv()
 
 app = Flask(__name__)
 
- #   cache block, caps to make it a constant
+ #   global cache block, caps to make it a constant
 GLOBAL_CACHE = {}
-CACHE_TTL_SECONDS = 300 #   5mins
+GLOBAL_CACHE_TTL_SECONDS = 300 #   5mins
+
+#   /filmLiveSearch/ cache block
+SEARCH_CACHE = {}
+SEARCH_CACHE_TTL_SECONDS = 120
 
 @app.route('/')
 def home():
@@ -116,26 +120,39 @@ def film_details():
 
         #   cache store goes here ⬇️
         GLOBAL_CACHE[film_id] = {
-            "expires_at": time_now + CACHE_TTL_SECONDS,
+            "expires_at": time_now + GLOBAL_CACHE_TTL_SECONDS,
             "data": film_info
         }
-    # return jsonify(film_info), 200    --- former return result before flag below
         return {**film_info, "cached":False}
 
 #   ℹ️ allows you to to see the first five films that match the query ID typed in route. film_id + film_name
 @app.route('/filmLiveSearch/', methods =["GET"])  # type: ignore
 def film_live_search():
+
     query = request.args.get("query", "")
     if query == "":
         return {
             "error": "query required"
         }, 400
+
+     #   cache block lookup
+    time_now = time.time()
+    cached = SEARCH_CACHE.get(query)
+    if cached and cached.get("expires_at", 0) > time_now:
+        return jsonify({"films": cached["films"], "cached": True}), 200
     
     get_base = os.getenv("MOVIEGLU_API_BASE") 
     build_url = str(get_base) + "/filmLiveSearch/"
     params = {"query": query}
     headers = movieglu_headers()
     response = requests.get(build_url, headers = headers, params=params)
+
+    #   ❌ no content found
+    if response.status_code == 204:
+        return {
+            "error": "no results",
+            "query":  query
+        }, response.status_code
 
     #   ❌ unsuccesful output 
     if response.status_code != 200:
@@ -148,7 +165,7 @@ def film_live_search():
             "MG Message": response.headers.get("MG-message"),
             "MG-error": response.headers.get("MG-error"),
             "has auth": bool(headers.get("Authorization"))
-        }
+        }, response.status_code
     
     #   ✅ succesful output 
     if response.status_code == 200:
@@ -175,7 +192,13 @@ def film_live_search():
                 "film_id": film_id,
                 "film_name": film_name
             })
-        return jsonify(first_five_films),200
+            
+        #   cache store goes here ⬇️
+        SEARCH_CACHE[query] = {
+            "expires_at": time_now + SEARCH_CACHE_TTL_SECONDS,
+            "films": first_five_films
+        }
+        return jsonify({"films": first_five_films, "cached": False}), 200
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
