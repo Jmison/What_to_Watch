@@ -1,15 +1,23 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>What to Watch App</title>
-</head>
-<body>
-    <h1>What to Watch: Find what movies to watch, in your area!</h1>
-    <br>
-    <h2>Now showing: Title Here </h2>
-    <h3>Film Details: Here</h3>
-    <h4>Film ID Here</h4>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>What to Watch</title>
+  </head>
+  <body>
+    <h1>What to Watch</h1>
+
+    <form action="/filmLiveSearch/" method="GET">
+      <label for="query">Search for a film</label>
+      <input
+        id="query"
+        name="query"
+        type="text"
+        placeholder="Try: woman"
+        required
+      />
+      <button type="submit">Search</button>
+    </form>
+  </body>
 </html>
